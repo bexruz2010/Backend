@@ -1,3 +1,10 @@
+const Country = require("../models/Country");
+
+exports.getCountries = async (req, res) => {
+  const countries = await Country.find({ isActive: true });
+  res.json(countries);
+};
+
 exports.getCountryById = async (req, res) => {
   const country = await Country.findById(req.params.id);
   if (!country) {
@@ -28,4 +35,23 @@ exports.searchByTitle = async (req, res) => {
     isActive: true,
   });
   res.json(countries);
+};
+
+exports.createCountry = async (req, res) => {
+  const country = await Country.create(req.body);
+  res.json(country);
+};
+
+exports.updateCountry = async (req, res) => {
+  const updated = await Country.findByIdAndUpdate(
+    req.params.id,
+    req.body,
+    { new: true }
+  );
+  res.json(updated);
+};
+
+exports.deleteCountry = async (req, res) => {
+  await Country.findByIdAndUpdate(req.params.id, { isActive: false });
+  res.json({ message: "O‘chirildi" });
 };

@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+const mongoose = require("mongoose");
 
 const countrySchema = new mongoose.Schema(
   {
@@ -10,21 +10,17 @@ const countrySchema = new mongoose.Schema(
     continent: {
       type: String,
       required: true,
-      enum: ["Asia", "Europe", "Africa", "America", "Australia"],
     },
 
-    tourTypes: [
-      {
-        type: String,
-        enum: ["Travel", "Umrah", "Hajj", "Study", "Work"],
-      },
-    ],
+    tourTypes: {
+      type: [String],
+      default: [],
+    },
 
-    availableCountries: [
-      {
-        type: String,
-      },
-    ],
+    availableCountries: {
+      type: [String],
+      default: [],
+    },
 
     price: {
       type: Number,
@@ -32,11 +28,16 @@ const countrySchema = new mongoose.Schema(
     },
 
     image: {
-      type: String, // image URL
+      type: String,
       required: true,
+    },
+
+    isActive: {
+      type: Boolean,
+      default: true,
     },
   },
   { timestamps: true }
 );
 
-export default mongoose.model("Country", countrySchema);
+module.exports = mongoose.model("Country", countrySchema);
