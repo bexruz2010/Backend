@@ -1,4 +1,37 @@
+// models/country.js
 const mongoose = require("mongoose");
+
+const slugify = (text) =>
+  text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, "") // remove non-word chars
+    .replace(/\s+/g, "-") // spaces to dashes
+    .replace(/-+/g, "-");
+
+const tourOptionSchema = new mongoose.Schema(
+  {
+    transport: {
+      type: String,
+      enum: ["Bus", "Plane", "Ship", "Train", "Car"],
+    },
+    mealPlan: {
+      type: String,
+      enum: ["Breakfast only", "Half board", "Full board", "All inclusive"],
+      default: "Breakfast only",
+    },
+    price: {
+      type: Number,
+      min: 0,
+    },
+    extraServices: {
+      type: [String],
+      default: [],
+    },
+  },
+  { _id: false } // option subdocs need not have their own _id
+);
 
 const countrySchema = new mongoose.Schema(
   {
@@ -10,7 +43,7 @@ const countrySchema = new mongoose.Schema(
     },
     slug: {
       type: String,
-      unique: true, // URL uchun
+      unique: true,
       lowercase: true,
       index: true,
     },
@@ -19,41 +52,47 @@ const countrySchema = new mongoose.Schema(
       required: true,
       enum: ["Asia", "Europe", "Africa", "North America", "South America", "Oceania", "Antarctica"],
     },
-    countryCode: { // ISO country code
+    countryCode: {
       type: String,
       default: "",
+      trim: true,
     },
     description: {
       type: String,
       default: "",
     },
+
+    // Tur turlari va teglari
     tourTypes: {
-      type: [String], // Adventure, Relax, Family, etc.
+      type: [String],
       default: [],
     },
-    availableCountries: {
-      type: [String], // Masalan: "France", "Spain" – multi-destination
+    tags: {
+      type: [String],
       default: [],
     },
 
-    // Narx va chegirmalar
+    // Narx va chegirma
     price: {
       type: Number,
       required: true,
+      min: 0,
     },
     discount: {
       type: Number,
       default: 0,
+      min: 0,
+      max: 100,
     },
     currency: {
       type: String,
       default: "USD",
     },
 
-    // Reyting va sharhlar
+    // Reyting
     rating: {
       type: Number,
-      default: 0, // 1-5 ball
+      default: 0,
       min: 0,
       max: 5,
     },
@@ -62,7 +101,7 @@ const countrySchema = new mongoose.Schema(
       default: 0,
     },
 
-    // Rasmlar
+    // Media
     mainImage: {
       type: String,
       required: true,
@@ -72,45 +111,30 @@ const countrySchema = new mongoose.Schema(
       default: [],
     },
     video: {
-      type: String, // YouTube yoki Vimeo link
+      type: String,
+      default: "",
     },
 
-    // Tur davomiyligi va fasl
+    // Davomiylik va ob-havo
     durationDays: {
       type: Number,
       default: 1,
+      min: 1,
     },
     bestSeason: {
       type: String,
-      default: "", // Spring, Summer, Autumn, Winter
+      default: "",
     },
     climate: {
-      type: String, // Tropical, Temperate, Arid, etc.
+      type: String,
+      default: "",
     },
 
-    // Tur opsiyalari
-    tourOptions: [
-      {
-        transport: {
-          type: String,
-          enum: ["Bus", "Plane", "Ship", "Train", "Car"],
-          required: true,
-        },
-        mealPlan: {
-          type: String,
-          enum: ["Breakfast only", "Half board", "Full board", "All inclusive"],
-          default: "Breakfast only",
-        },
-        price: {
-          type: Number,
-          required: true,
-        },
-        extraServices: {
-          type: [String], // Masalan: "Guide", "Insurance", "Airport transfer"
-          default: [],
-        },
-      },
-    ],
+    // Opsiyalar (ixtiyoriy)
+    tourOptions: {
+      type: [tourOptionSchema],
+      default: [],
+    },
 
     // Holat
     isActive: {
@@ -119,14 +143,10 @@ const countrySchema = new mongoose.Schema(
     },
     isFeatured: {
       type: Boolean,
-      default: false, // sayt homepage uchun
-    },
-    tags: {
-      type: [String], // Safari, Beach, Mountain, Cultural
-      default: [],
+      default: false,
     },
 
-    // Aloqa va lokatsiya
+    // Lokatsiya (GeoJSON point)
     location: {
       type: {
         type: String,
@@ -134,15 +154,15 @@ const countrySchema = new mongoose.Schema(
         default: "Point",
       },
       coordinates: {
-        type: [Number], // [longitude, latitude]
-        default: [0, 0],
+        type: [Number], // [lng, lat]
+        // don't set a default so we can detect missing location easily
       },
-      address: String,
-      city: String,
-      country: String,
+      address: { type: String, default: "" },
+      city: { type: String, default: "" },
+      country: { type: String, default: "" },
     },
 
-    // Review va bookinglar
+    // Reflar
     reviews: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -156,20 +176,27 @@ const countrySchema = new mongoose.Schema(
       },
     ],
 
-    // SEO uchun qo‘shimchalar
-    metaTitle: String,
-    metaDescription: String,
-    metaKeywords: [String],
+    // SEO
+    metaTitle: { type: String, default: "" },
+    metaDescription: { type: String, default: "" },
+    metaKeywords: { type: [String], default: [] },
   },
   { timestamps: true }
 );
 
-// Indexlar tez qidirish uchun
+// Indekslar (tez qidiruv uchun)
 countrySchema.index({ continent: 1 });
 countrySchema.index({ price: 1 });
 countrySchema.index({ tourTypes: 1 });
 countrySchema.index({ slug: 1 }, { unique: true });
-countrySchema.index({ "location.coordinates": "2dsphere" }); // Geospatial search
+countrySchema.index({ "location.coordinates": "2dsphere" });
+
+// Pre-validate: slug bo'lmasa title'dan hosil qilamiz
+countrySchema.pre("validate", function (next) {
+  if (!this.slug && this.title) {
+    this.slug = slugify(this.title);
+  }
+  next();
+});
 
 module.exports = mongoose.model("Country", countrySchema);
-
