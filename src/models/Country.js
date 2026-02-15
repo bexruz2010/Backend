@@ -1,202 +1,67 @@
-// models/country.js
+const express = require("express");
 const mongoose = require("mongoose");
+const Country = require("./models/country"); // sening model yo'ling
 
-const slugify = (text) =>
-  text
-    .toString()
-    .toLowerCase()
-    .trim()
-    .replace(/[^\w\s-]/g, "") // remove non-word chars
-    .replace(/\s+/g, "-") // spaces to dashes
-    .replace(/-+/g, "-");
+const app = express();
+app.use(express.json()); // JSON body ni o'qish uchun
 
-const tourOptionSchema = new mongoose.Schema(
-  {
-    transport: {
-      type: String,
-      enum: ["Bus", "Plane", "Ship", "Train", "Car"],
-    },
-    mealPlan: {
-      type: String,
-      enum: ["Breakfast only", "Half board", "Full board", "All inclusive"],
-      default: "Breakfast only",
-    },
-    price: {
-      type: Number,
-      min: 0,
-    },
-    extraServices: {
-      type: [String],
-      default: [],
-    },
-  },
-  { _id: false } // option subdocs need not have their own _id
-);
-
-const countrySchema = new mongoose.Schema(
-  {
-    // Asosiy ma'lumotlar
-    title: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    slug: {
-      type: String,
-      unique: true,
-      lowercase: true,
-      index: true,
-    },
-    continent: {
-      type: String,
-      required: true,
-      enum: ["Asia", "Europe", "Africa", "North America", "South America", "Oceania", "Antarctica"],
-    },
-    countryCode: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-    description: {
-      type: String,
-      default: "",
-    },
-
-    // Tur turlari va teglari
-    tourTypes: {
-      type: [String],
-      default: [],
-    },
-    tags: {
-      type: [String],
-      default: [],
-    },
-
-    // Narx va chegirma
-    price: {
-      type: Number,
-      required: true,
-      min: 0,
-    },
-    discount: {
-      type: Number,
-      default: 0,
-      min: 0,
-      max: 100,
-    },
-    currency: {
-      type: String,
-      default: "USD",
-    },
-
-    // Reyting
-    rating: {
-      type: Number,
-      default: 0,
-      min: 0,
-      max: 5,
-    },
-    reviewsCount: {
-      type: Number,
-      default: 0,
-    },
-
-    // Media
-    mainImage: {
-      type: String,
-      required: true,
-    },
-    gallery: {
-      type: [String],
-      default: [],
-    },
-    video: {
-      type: String,
-      default: "",
-    },
-
-    // Davomiylik va ob-havo
-    durationDays: {
-      type: Number,
-      default: 1,
-      min: 1,
-    },
-    bestSeason: {
-      type: String,
-      default: "",
-    },
-    climate: {
-      type: String,
-      default: "",
-    },
-
-    // Opsiyalar (ixtiyoriy)
-    tourOptions: {
-      type: [tourOptionSchema],
-      default: [],
-    },
-
-    // Holat
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
-    isFeatured: {
-      type: Boolean,
-      default: false,
-    },
-
-    // Lokatsiya (GeoJSON point)
-    location: {
-      type: {
-        type: String,
-        enum: ["Point"],
-        default: "Point",
-      },
-      coordinates: {
-        type: [Number], // [lng, lat]
-        // don't set a default so we can detect missing location easily
-      },
-      address: { type: String, default: "" },
-      city: { type: String, default: "" },
-      country: { type: String, default: "" },
-    },
-
-    // Reflar
-    reviews: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Review",
-      },
-    ],
-    bookings: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Booking",
-      },
-    ],
-
-    // SEO
-    metaTitle: { type: String, default: "" },
-    metaDescription: { type: String, default: "" },
-    metaKeywords: { type: [String], default: [] },
-  },
-  { timestamps: true }
-);
-
-// Indekslar (tez qidiruv uchun)
-countrySchema.index({ continent: 1 });
-countrySchema.index({ price: 1 });
-countrySchema.index({ tourTypes: 1 });
-countrySchema.index({ slug: 1 }, { unique: true });
-countrySchema.index({ "location.coordinates": "2dsphere" });
-
-// Pre-validate: slug bo'lmasa title'dan hosil qilamiz
-countrySchema.pre("validate", function (next) {
-  if (!this.slug && this.title) {
-    this.slug = slugify(this.title);
+// CREATE – yangi country qo'shish
+app.post("/countries", async (req, res) => {
+  try {
+    const country = new Country(req.body);
+    await country.save();
+    res.status(201).json(country);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
   }
-  next();
 });
 
-module.exports = mongoose.model("Country", countrySchema);
+// READ – barcha countrylarni olish
+app.get("/countries", async (req, res) => {
+  try {
+    const countries = await Country.find();
+    res.json(countries);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// READ – ID bo'yicha olish
+app.get("/countries/:id", async (req, res) => {
+  try {
+    const country = await Country.findById(req.params.id);
+    if (!country) return res.status(404).json({ error: "Not found" });
+    res.json(country);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// UPDATE – country yangilash
+app.put("/countries/:id", async (req, res) => {
+  try {
+    const country = await Country.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!country) return res.status(404).json({ error: "Not found" });
+    res.json(country);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// DELETE – country o'chirish
+app.delete("/countries/:id", async (req, res) => {
+  try {
+    const country = await Country.findByIdAndDelete(req.params.id);
+    if (!country) return res.status(404).json({ error: "Not found" });
+    res.json({ message: "Deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Server ishga tushishi
+mongoose.connect("mongodb://localhost:27017/tourDB")
+  .then(() => {
+    app.listen(3000, () => console.log("Server running on port 3000"));
+  })
+  .catch(err => console.log(err));
