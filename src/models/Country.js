@@ -1,67 +1,174 @@
-const express = require("express");
 const mongoose = require("mongoose");
-const Country = require("./models/country"); // sening model yo'ling
 
-const app = express();
-app.use(express.json()); // JSON body ni o'qish uchun
+const countrySchema = new mongoose.Schema(
+  {
+    // Asosiy ma'lumotlar
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    slug: {
+      type: String,
+      unique: true, // URL uchun
+      lowercase: true,
+      index: true,
+    },
+    continent: {
+      type: String,
+      required: true,
+      enum: ["Asia", "Europe", "Africa", "North America", "South America", "Oceania", "Antarctica"],
+    },
+    countryCode: { // ISO country code
+      type: String,
+      default: "",
+    },
+    description: {
+      type: String,
+      default: "",
+    },
+    tourTypes: {
+      type: [String], // Adventure, Relax, Family, etc.
+      default: [],
+    },
+    availableCountries: {
+      type: [String], // Masalan: "France", "Spain" – multi-destination
+      default: [],
+    },
 
-// CREATE – yangi country qo'shish
-app.post("/countries", async (req, res) => {
-  try {
-    const country = new Country(req.body);
-    await country.save();
-    res.status(201).json(country);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-});
+    // Narx va chegirmalar
+    price: {
+      type: Number,
+      required: true,
+    },
+    discount: {
+      type: Number,
+      default: 0,
+    },
+    currency: {
+      type: String,
+      default: "USD",
+    },
 
-// READ – barcha countrylarni olish
-app.get("/countries", async (req, res) => {
-  try {
-    const countries = await Country.find();
-    res.json(countries);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+    // Reyting va sharhlar
+    rating: {
+      type: Number,
+      default: 0, // 1-5 ball
+      min: 0,
+      max: 5,
+    },
+    reviewsCount: {
+      type: Number,
+      default: 0,
+    },
 
-// READ – ID bo'yicha olish
-app.get("/countries/:id", async (req, res) => {
-  try {
-    const country = await Country.findById(req.params.id);
-    if (!country) return res.status(404).json({ error: "Not found" });
-    res.json(country);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+    // Rasmlar
+    mainImage: {
+      type: String,
+      required: true,
+    },
+    gallery: {
+      type: [String],
+      default: [],
+    },
+    video: {
+      type: String, // YouTube yoki Vimeo link
+    },
 
-// UPDATE – country yangilash
-app.put("/countries/:id", async (req, res) => {
-  try {
-    const country = await Country.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!country) return res.status(404).json({ error: "Not found" });
-    res.json(country);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-});
+    // Tur davomiyligi va fasl
+    durationDays: {
+      type: Number,
+      default: 1,
+    },
+    bestSeason: {
+      type: String,
+      default: "", // Spring, Summer, Autumn, Winter
+    },
+    climate: {
+      type: String, // Tropical, Temperate, Arid, etc.
+    },
 
-// DELETE – country o'chirish
-app.delete("/countries/:id", async (req, res) => {
-  try {
-    const country = await Country.findByIdAndDelete(req.params.id);
-    if (!country) return res.status(404).json({ error: "Not found" });
-    res.json({ message: "Deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+    // Tur opsiyalari
+    tourOptions: [
+      {
+        transport: {
+          type: String,
+          enum: ["Bus", "Plane", "Ship", "Train", "Car"],
+          required: true,
+        },
+        mealPlan: {
+          type: String,
+          enum: ["Breakfast only", "Half board", "Full board", "All inclusive"],
+          default: "Breakfast only",
+        },
+        price: {
+          type: Number,
+          required: true,
+        },
+        extraServices: {
+          type: [String], // Masalan: "Guide", "Insurance", "Airport transfer"
+          default: [],
+        },
+      },
+    ],
 
-// Server ishga tushishi
-mongoose.connect("mongodb://localhost:27017/tourDB")
-  .then(() => {
-    app.listen(3000, () => console.log("Server running on port 3000"));
-  })
-  .catch(err => console.log(err));
+    // Holat
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+    isFeatured: {
+      type: Boolean,
+      default: false, // sayt homepage uchun
+    },
+    tags: {
+      type: [String], // Safari, Beach, Mountain, Cultural
+      default: [],
+    },
+
+    // Aloqa va lokatsiya
+    location: {
+      type: {
+        type: String,
+        enum: ["Point"],
+        default: "Point",
+      },
+      coordinates: {
+        type: [Number], // [longitude, latitude]
+        default: [0, 0],
+      },
+      address: String,
+      city: String,
+      country: String,
+    },
+
+    // Review va bookinglar
+    reviews: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Review",
+      },
+    ],
+    bookings: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Booking",
+      },
+    ],
+
+    // SEO uchun qo‘shimchalar
+    metaTitle: String,
+    metaDescription: String,
+    metaKeywords: [String],
+  },
+  { timestamps: true }
+);
+
+// Indexlar tez qidirish uchun
+// countrySchema.index({ continent: 1 });
+// countrySchema.index({ price: 1 });
+// countrySchema.index({ tourTypes: 1 });
+// countrySchema.index({ slug: 1 }, { unique: true });
+// countrySchema.index({ "location.coordinates": "2dsphere" }); // Geospatial search
+
+module.exports = mongoose.model("Country", countrySchema);

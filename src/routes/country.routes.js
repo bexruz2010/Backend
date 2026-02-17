@@ -1,5 +1,4 @@
 const router = require("express").Router();
-const auth = require("../middleware/auth.middleware");
 const {
   createCountry,
   getCountries,
@@ -17,8 +16,8 @@ router.get("/type/:type", getByType);
 router.get("/search/:title", searchByTitle);
 router.get("/:id", getCountryById);
 
-router.post("/", auth, createCountry);
-router.put("/:id", auth, updateCountry);
-router.delete("/:id", auth, deleteCountry);
+router.post("/", createCountry);
+router.put("/:id", updateCountry);
+router.delete("/:id", deleteCountry);
 
 module.exports = router;

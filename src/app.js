@@ -3,15 +3,16 @@ const cors = require("cors");
 
 const app = express();
 
-app.use(cors());
+// 🔥 BODY PARSER (majburiy!)
 app.use(express.json());
+app.use(cors());
 
-app.use("/api/auth", require("./routes/auth.routes"));
+// ROUTES
 app.use("/api/countries", require("./routes/country.routes"));
 
-
+// TEST ROUTE
 app.get("/", (req, res) => {
-  res.send("API is working 🚀");
+  res.send("API ishlayapti 🚀");
 });
 
 module.exports = app;
